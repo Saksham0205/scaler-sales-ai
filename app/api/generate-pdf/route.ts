@@ -6,8 +6,7 @@ import {
   buildCoveringMessagePrompt,
 } from '@/lib/prompts';
 import { generatePDF, buildPDFHTML } from '@/lib/pdf';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -45,13 +44,14 @@ export async function POST(req: NextRequest) {
     const htmlContent = buildPDFHTML(profile, pdfContent);
     const pdfBuffer = await generatePDF(htmlContent);
 
-    // Save PDF to public folder with unique name
+    // Upload PDF to Vercel Blob storage for a durable public URL
     const fileName = `scaler-${profile.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`;
-    const pdfDir = path.join(process.cwd(), 'public', 'pdfs');
-    await mkdir(pdfDir, { recursive: true });
-    await writeFile(path.join(pdfDir, fileName), pdfBuffer);
+    const blob = await put(fileName, pdfBuffer, {
+      access: 'public',
+      contentType: 'application/pdf',
+    });
 
-    const pdfUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/pdfs/${fileName}`;
+    const pdfUrl = blob.url;
 
     return NextResponse.json({
       extraction,
