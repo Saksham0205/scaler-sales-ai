@@ -695,25 +695,6 @@ export default function Home() {
                     className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 resize-none"
                   />
                 </div>
-
-                <div className="pt-2 border-t border-gray-100">
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Lead WhatsApp Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91XXXXXXXXXX"
-                    value={leadPhone}
-                    onChange={(e) => {
-                      setLeadPhone(e.target.value);
-                      if (leadPhoneError) setLeadPhoneError('');
-                    }}
-                    className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 ${
-                      leadPhoneError ? 'border-red-300' : 'border-gray-200'
-                    }`}
-                  />
-                  {leadPhoneError && <p className="text-red-600 text-xs mt-1.5 font-medium">{leadPhoneError}</p>}
-                </div>
               </div>
             </div>
 
