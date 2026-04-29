@@ -225,6 +225,7 @@ export default function Home() {
 
   const [bdaPhone, setBdaPhone] = useState('');
   const [bdaPhoneError, setBdaPhoneError] = useState('');
+  const [bdaName, setBdaName] = useState('');
 
   const [profile, setProfile] = useState<LeadProfile>({ ...emptyProfile });
   const [activeTab, setActiveTab] = useState<'transcript' | 'audio'>('transcript');
@@ -266,6 +267,8 @@ export default function Home() {
       setBdaPhone(stored);
       setOnboardingDone(true);
     }
+    const storedName = localStorage.getItem('bdaName');
+    if (storedName) setBdaName(storedName);
   }, []);
 
   useEffect(() => {
@@ -374,7 +377,7 @@ export default function Home() {
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, transcript: profile.transcript }),
+        body: JSON.stringify({ profile, transcript: profile.transcript, bdaName }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -570,23 +573,40 @@ export default function Home() {
                 <h2 className="text-sm font-semibold text-gray-900">BDA Configuration</h2>
                 <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Settings</span>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  WhatsApp Number
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+91XXXXXXXXXX"
-                  value={bdaPhone}
-                  onChange={(e) => {
-                    setBdaPhone(e.target.value);
-                    if (bdaPhoneError) setBdaPhoneError('');
-                  }}
-                  className={`w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow ${
-                    bdaPhoneError ? 'border-red-300' : 'border-gray-200'
-                  }`}
-                />
-                {bdaPhoneError && <p className="text-red-600 text-xs mt-1.5 font-medium">{bdaPhoneError}</p>}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Rahul"
+                    value={bdaName}
+                    onChange={(e) => {
+                      setBdaName(e.target.value);
+                      localStorage.setItem('bdaName', e.target.value);
+                    }}
+                    className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    WhatsApp Number
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+91XXXXXXXXXX"
+                    value={bdaPhone}
+                    onChange={(e) => {
+                      setBdaPhone(e.target.value);
+                      if (bdaPhoneError) setBdaPhoneError('');
+                    }}
+                    className={`w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow ${
+                      bdaPhoneError ? 'border-red-300' : 'border-gray-200'
+                    }`}
+                  />
+                  {bdaPhoneError && <p className="text-red-600 text-xs mt-1.5 font-medium">{bdaPhoneError}</p>}
+                </div>
               </div>
             </div>
           </div>
