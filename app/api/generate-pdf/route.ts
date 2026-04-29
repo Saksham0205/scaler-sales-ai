@@ -50,7 +50,6 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
     linkedinSummary: (body.profile?.linkedinSummary ?? '').trim(),
   };
   const transcript = (body.transcript ?? '').trim();
-  const bdaName = (body.bdaName ?? '').trim();
 
   if (!profile.name) {
     return NextResponse.json({ error: "Lead name is required" }, { status: 400 });
@@ -92,7 +91,7 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
   console.log('Step 3: Generating covering message...');
   const coveringCompletion = await groq.chat.completions.create({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    messages: [{ role: 'user', content: buildCoveringMessagePrompt(profile, extraction, bdaName) }],
+    messages: [{ role: 'user', content: buildCoveringMessagePrompt(profile, extraction) }],
     max_tokens: 2000,
   });
   const coveringMessage = coveringCompletion.choices[0]?.message?.content?.trim() || '';

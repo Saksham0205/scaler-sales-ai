@@ -17,6 +17,8 @@ interface PdfRecord {
   personaName: string;
   openQuestions: Array<{ question: string; priority: string }>;
   headline: string;
+  keyMotivation: string;
+  biggestHesitation: string;
   pdfUrl: string;
 }
 
@@ -216,6 +218,7 @@ const emptyProfile: LeadProfile = {
 };
 
 export default function Home() {
+  const [hydrated, setHydrated] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [onboardingInput, setOnboardingInput] = useState('');
   const [onboardingError, setOnboardingError] = useState('');
@@ -225,7 +228,6 @@ export default function Home() {
 
   const [bdaPhone, setBdaPhone] = useState('');
   const [bdaPhoneError, setBdaPhoneError] = useState('');
-  const [bdaName, setBdaName] = useState('');
 
   const [profile, setProfile] = useState<LeadProfile>({ ...emptyProfile });
   const [activeTab, setActiveTab] = useState<'transcript' | 'audio'>('transcript');
@@ -265,10 +267,10 @@ export default function Home() {
     const stored = localStorage.getItem('bdaPhone');
     if (stored) {
       setBdaPhone(stored);
+      setOnboardingInput(stored);
       setOnboardingDone(true);
     }
-    const storedName = localStorage.getItem('bdaName');
-    if (storedName) setBdaName(storedName);
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -377,7 +379,7 @@ export default function Home() {
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, transcript: profile.transcript, bdaName }),
+        body: JSON.stringify({ profile, transcript: profile.transcript }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -389,6 +391,8 @@ export default function Home() {
           personaName: profile.name,
           openQuestions: (data.extraction?.openQuestions ?? []).slice(0, 2),
           headline: data.pdfContent?.headline ?? data.extraction?.keyMotivation ?? '',
+          keyMotivation: data.extraction?.keyMotivation ?? '',
+          biggestHesitation: data.extraction?.biggestHesitation ?? '',
           pdfUrl: data.pdfUrl,
         },
       ]);
@@ -487,20 +491,23 @@ export default function Home() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* Onboarding Modal */}
-      {!onboardingDone && (
-        <div className="fixed inset-0 z-[100] bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-8 max-w-md w-full">
-            <div className="mb-6 flex items-center gap-2">
-              <div className="w-6 h-6 rounded-sm overflow-hidden flex items-center justify-center shrink-0">
-                <Image src="/scaler-logo.jpg" alt="Scaler Logo" width={24} height={24} className="object-contain" />
+      {hydrated && !onboardingDone && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-10 max-w-md w-full">
+            {/* Logo */}
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                <Image src="/scaler-logo.jpg" alt="Scaler Logo" width={40} height={40} className="object-contain" />
               </div>
-              <span className="text-gray-900 text-lg font-semibold tracking-tight">Scaler</span>
+              <span className="text-gray-900 text-xl font-bold tracking-tight">Scaler</span>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Sales AI</h2>
-            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-              Enter the BDA&apos;s WhatsApp number to get started. All internal notifications will be routed here.
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-3 leading-tight">Welcome to Scaler Sales AI</h2>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+              Enter the BDA&apos;s WhatsApp number to get started. All messages during this session will route to this number.
             </p>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
               WhatsApp Number
             </label>
             <input
@@ -513,23 +520,24 @@ export default function Home() {
                 if (onboardingError) setOnboardingError('');
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleOnboardingSubmit()}
-              className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 mb-1 transition-shadow ${
+              className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-shadow ${
                 onboardingError ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-200'
               }`}
             />
-            {onboardingError && <p className="text-red-600 text-xs mb-2 font-medium">{onboardingError}</p>}
+            {onboardingError && <p className="text-red-600 text-xs mt-2 font-medium">{onboardingError}</p>}
+
             <button
               onClick={handleOnboardingSubmit}
-              className="w-full mt-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors shadow-sm"
+              className="w-full mt-6 py-3 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 active:bg-black transition-colors shadow-sm"
             >
-              Continue
+              Start Session
             </button>
           </div>
         </div>
       )}
 
       {/* Main App */}
-      <div className={!onboardingDone ? 'pointer-events-none opacity-40 select-none blur-[2px] transition-all' : 'transition-all'}>
+      <div className={hydrated && !onboardingDone ? 'pointer-events-none opacity-40 select-none transition-all' : 'transition-all'}>
 
         {/* Navbar */}
         <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -573,40 +581,24 @@ export default function Home() {
                 <h2 className="text-sm font-semibold text-gray-900">BDA Configuration</h2>
                 <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Settings</span>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Rahul"
-                    value={bdaName}
-                    onChange={(e) => {
-                      setBdaName(e.target.value);
-                      localStorage.setItem('bdaName', e.target.value);
-                    }}
-                    className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    WhatsApp Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91XXXXXXXXXX"
-                    value={bdaPhone}
-                    onChange={(e) => {
-                      setBdaPhone(e.target.value);
-                      if (bdaPhoneError) setBdaPhoneError('');
-                    }}
-                    className={`w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow ${
-                      bdaPhoneError ? 'border-red-300' : 'border-gray-200'
-                    }`}
-                  />
-                  {bdaPhoneError && <p className="text-red-600 text-xs mt-1.5 font-medium">{bdaPhoneError}</p>}
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  WhatsApp Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+91XXXXXXXXXX"
+                  value={bdaPhone}
+                  onChange={(e) => {
+                    setBdaPhone(e.target.value);
+                    localStorage.setItem('bdaPhone', e.target.value);
+                    if (bdaPhoneError) setBdaPhoneError('');
+                  }}
+                  className={`w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-shadow ${
+                    bdaPhoneError ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                />
+                {bdaPhoneError && <p className="text-red-600 text-xs mt-1.5 font-medium">{bdaPhoneError}</p>}
               </div>
             </div>
           </div>
@@ -1118,8 +1110,25 @@ export default function Home() {
                       </p>
                     )}
 
+                    {(record.keyMotivation || record.biggestHesitation) && (
+                      <div className="space-y-2">
+                        {record.keyMotivation && (
+                          <div className="bg-white border border-gray-200 rounded px-2.5 py-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Driving them</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">{record.keyMotivation}</p>
+                          </div>
+                        )}
+                        {record.biggestHesitation && (
+                          <div className="bg-white border border-gray-200 rounded px-2.5 py-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Biggest blocker</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">{record.biggestHesitation}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div>
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Questions</p>
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Open Questions</p>
                       {record.openQuestions.length > 0 ? (
                         <ul className="space-y-2">
                           {record.openQuestions.map((q, j) => (

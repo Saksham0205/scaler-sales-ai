@@ -102,18 +102,14 @@ CRITICAL RULES:
 Return only valid JSON. No markdown, no preamble.`;
 }
 
-export function buildCoveringMessagePrompt(profile: LeadProfile, extraction: any, bdaName?: string): string {
-  const senderLine = bdaName
-    ? `- The BDA who spoke to them is named ${bdaName} — sign off the message as ${bdaName}`
-    : '- Sign off as "The Scaler Team"';
-
+export function buildCoveringMessagePrompt(profile: LeadProfile, extraction: any): string {
   return `Write a short WhatsApp covering message (3-4 sentences max) that accompanies a personalised PDF being sent to ${profile.name}.
 
 Context:
 - They just had a call with our BDA
 - The PDF answers their specific questions
 - We want them to read the PDF and take the entrance test
-${senderLine}
+- Sign off as "The Scaler Team"
 
 Their key concern: ${extraction.biggestHesitation}
 Their motivation: ${extraction.keyMotivation}
