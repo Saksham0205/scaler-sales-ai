@@ -158,6 +158,50 @@ function MarkdownText({ text }: { text: string }) {
   );
 }
 
+// ─── Transcript Viewer — speaker-labeled display ──────────────────────────────
+
+function TranscriptViewer({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim());
+  return (
+    <div className="max-h-[300px] overflow-y-auto space-y-1 pr-1">
+      {lines.map((line, i) => {
+        if (line.startsWith('BDA:')) {
+          const content = line.slice(4).trim();
+          return (
+            <div key={i} className="flex items-start gap-2 bg-blue-50 border-l-4 border-blue-400 rounded-md px-3 py-2">
+              <span className="text-xs font-bold text-blue-600 shrink-0 mt-0.5 w-8">BDA</span>
+              <span className="text-sm text-gray-700 leading-snug">{content}</span>
+            </div>
+          );
+        }
+        if (line.startsWith('Lead:')) {
+          const content = line.slice(5).trim();
+          return (
+            <div key={i} className="flex items-start gap-2 bg-orange-50 border-l-4 border-orange-400 rounded-md px-3 py-2">
+              <span className="text-xs font-bold text-orange-500 shrink-0 mt-0.5 w-8">Lead</span>
+              <span className="text-sm text-gray-700 leading-snug">{content}</span>
+            </div>
+          );
+        }
+        if (line.startsWith('Speaker:')) {
+          const content = line.slice(8).trim();
+          return (
+            <div key={i} className="flex items-start gap-2 bg-gray-50 border-l-4 border-gray-300 rounded-md px-3 py-2">
+              <span className="text-xs font-bold text-gray-500 shrink-0 mt-0.5 w-8">???</span>
+              <span className="text-sm text-gray-600 leading-snug">{content}</span>
+            </div>
+          );
+        }
+        return (
+          <div key={i} className="px-3 py-1">
+            <span className="text-sm text-gray-500">{line}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const PROGRAMS = ['Scaler Academy', 'Scaler Data Science & ML', 'Scaler DevOps & Cloud'];
@@ -215,6 +259,7 @@ export default function Home() {
   const [transcribeSuccess, setTranscribeSuccess] = useState(false);
   const [audioFileName, setAudioFileName] = useState('');
   const [audioFileSize, setAudioFileSize] = useState('');
+  const [showAutoFillBanner, setShowAutoFillBanner] = useState(false);
 
   // ── Toast ──
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -421,7 +466,21 @@ export default function Home() {
       const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      updateField('transcript', data.transcript);
+      if (data.extractedProfile) {
+        const p = data.extractedProfile;
+        setProfile({
+          name: p.name || '',
+          roleAndCompany: p.roleAndCompany || '',
+          yearsOfExperience: p.yearsOfExperience ?? 0,
+          intent: p.intent || '',
+          linkedinSummary: p.linkedinSummary || '',
+          programOfInterest: p.programOfInterest || 'Scaler Academy',
+          transcript: data.transcript,
+        });
+        setShowAutoFillBanner(true);
+      } else {
+        updateField('transcript', data.transcript);
+      }
       setTranscribeSuccess(true);
       addToast('Audio transcribed successfully!', 'success');
     } catch (e: any) {
@@ -712,12 +771,22 @@ export default function Home() {
                   {profile.transcript && !transcribeLoading && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Transcription Result</label>
-                      <textarea
-                        readOnly
-                        value={profile.transcript}
-                        rows={8}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 resize-none focus:outline-none"
-                      />
+                      <div className="border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+                        <TranscriptViewer text={profile.transcript} />
+                      </div>
+                    </div>
+                  )}
+
+                  {showAutoFillBanner && (
+                    <div className="flex items-start justify-between gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+                      <span>⚡ Profile auto-filled from audio. Please review and correct if needed.</span>
+                      <button
+                        onClick={() => setShowAutoFillBanner(false)}
+                        className="shrink-0 text-amber-600 hover:text-amber-900 font-bold text-base leading-none"
+                        aria-label="Dismiss"
+                      >
+                        ✕
+                      </button>
                     </div>
                   )}
                 </div>
