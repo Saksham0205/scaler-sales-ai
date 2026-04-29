@@ -121,6 +121,7 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
   const blob = await put(fileName, pdfBuffer, {
     access: 'public',
     contentType: 'application/pdf',
+    allowOverwrite: true,
   });
 
   return NextResponse.json({
