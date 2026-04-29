@@ -2,20 +2,33 @@ import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium-min';
 
 export async function generatePDF(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: { width: 1280, height: 900 },
-    executablePath: await chromium.executablePath(
-      'https://github.com/Sparticuz/chromium/releases/download/v121.0.0/chromium-v121.0.0-pack.tar'
-    ),
-    headless: true,
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1280, height: 900 },
+      executablePath: await chromium.executablePath(
+        'https://github.com/Sparticuz/chromium/releases/download/v121.0.0/chromium-v121.0.0-pack.tar'
+      ),
+      headless: true,
+    });
+  } catch (e: any) {
+    throw new Error('PDF engine failed to start');
+  }
 
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-  const pdf = await page.pdf({ format: 'A4', printBackground: true });
-  await browser.close();
-  return Buffer.from(pdf);
+  try {
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const pdf = await page.pdf({ format: 'A4', printBackground: true });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+function safe(value: unknown, fallback: string): string {
+  if (value === null || value === undefined || value === '') return fallback;
+  return String(value);
 }
 
 export function buildPDFHTML(profile: any, content: any): string {
@@ -25,13 +38,35 @@ export function buildPDFHTML(profile: any, content: any): string {
   const LIGHT_BG = '#F8FAFF';
   const BORDER_COLOR = '#E5EBF5';
 
-  const sectionsHTML = content.sections
+  const headline = safe(content?.headline, 'Your Personalised Scaler Overview');
+  const openingParagraph = safe(
+    content?.openingParagraph,
+    'Thank you for speaking with us.'
+  );
+  const ctaHeading = safe(
+    content?.callToAction?.heading,
+    'Ready to take the next step?'
+  );
+  const ctaBody = safe(
+    content?.callToAction?.body,
+    'Take the entrance test to get started.'
+  );
+  const ctaButtonText = safe(content?.callToAction?.buttonText, 'Take the Entrance Test');
+  const closingNote = safe(content?.closingNote, '— The Scaler Team');
+
+  const sections: any[] = Array.isArray(content?.sections) ? content.sections : [];
+
+  const sectionsHTML = sections
     .map(
       (section: any) => `
     <div class="section">
-      <h2 class="section-title">${section.title}</h2>
-      <p class="section-content">${section.content}</p>
-      ${section.supportingDetail ? `<div class="supporting-detail">${section.supportingDetail}</div>` : ''}
+      <h2 class="section-title">${safe(section?.title, 'Overview')}</h2>
+      <p class="section-content">${safe(section?.content, '')}</p>
+      ${
+        section?.supportingDetail
+          ? `<div class="supporting-detail">${section.supportingDetail}</div>`
+          : ''
+      }
     </div>
   `
     )
@@ -102,14 +137,14 @@ export function buildPDFHTML(profile: any, content: any): string {
       <div class="header-tagline">Engineering Education</div>
     </div>
   </div>
-  <div class="doc-label">Personalised Program Overview<br>Prepared exclusively for ${profile.name}</div>
+  <div class="doc-label">Personalised Program Overview<br>Prepared exclusively for ${safe(profile?.name, 'You')}</div>
 </div>
 
 <div class="hero">
-  <div class="recipient-chip">For ${profile.name} · ${profile.roleAndCompany}</div>
+  <div class="recipient-chip">For ${safe(profile?.name, 'You')} · ${safe(profile?.roleAndCompany, '')}</div>
   <div class="hero-label">Your Personalised Overview</div>
-  <h1 class="hero-headline">${content.headline}</h1>
-  <p class="hero-opening">${content.openingParagraph}</p>
+  <h1 class="hero-headline">${headline}</h1>
+  <p class="hero-opening">${openingParagraph}</p>
 </div>
 
 <div class="content">
@@ -117,14 +152,14 @@ export function buildPDFHTML(profile: any, content: any): string {
 </div>
 
 <div class="cta-box">
-  <div class="cta-heading">${content.callToAction.heading}</div>
-  <div class="cta-body">${content.callToAction.body}</div>
-  <a href="https://www.scaler.com/test" class="cta-button">${content.callToAction.buttonText} →</a>
+  <div class="cta-heading">${ctaHeading}</div>
+  <div class="cta-body">${ctaBody}</div>
+  <a href="https://www.scaler.com/test" class="cta-button">${ctaButtonText} →</a>
 </div>
 
 <div class="footer">
-  <div class="footer-text">© ${new Date().getFullYear()} Scaler · scaler.com · This document was prepared specifically for ${profile.name}</div>
-  <div class="footer-closing">${content.closingNote}</div>
+  <div class="footer-text">© ${new Date().getFullYear()} Scaler · scaler.com · This document was prepared specifically for ${safe(profile?.name, 'you')}</div>
+  <div class="footer-closing">${closingNote}</div>
 </div>
 
 </body>

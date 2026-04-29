@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 import {
   buildExtractionPrompt,
   buildPDFContentPrompt,
@@ -8,60 +8,141 @@ import {
 import { generatePDF, buildPDFHTML } from '@/lib/pdf';
 import { put } from '@vercel/blob';
 
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const TIMEOUT_MS = 45_000;
 
 function cleanJSON(raw: string): string {
   return raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 }
 
-export async function POST(req: NextRequest) {
+async function generateJSON(prompt: string, stepName: string): Promise<any> {
+  let raw = '';
   try {
-    const { profile, transcript } = await req.json();
+    const completion = await groq.chat.completions.create({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1000,
+    });
+    raw = completion.choices[0]?.message?.content || '{}';
+    return JSON.parse(cleanJSON(raw));
+  } catch {
+    console.log(`${stepName}: JSON parse failed, retrying with strict JSON prompt...`);
+    const strictPrompt =
+      prompt + '\n\nReturn ONLY raw JSON. No markdown. No backticks. No explanation.';
+    const retry = await groq.chat.completions.create({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [{ role: 'user', content: strictPrompt }],
+      max_tokens: 1000,
+    });
+    raw = retry.choices[0]?.message?.content || '{}';
+    return JSON.parse(cleanJSON(raw));
+  }
+}
 
-    const model = genai.getGenerativeModel({ model: 'gemini-flash-latest' });
+async function handleRequest(req: NextRequest): Promise<NextResponse> {
+  const body = await req.json();
 
-    // Step 1: Extract open questions from transcript
-    const extractionResult = await model.generateContent(
-      buildExtractionPrompt(profile, transcript)
+  const profile = {
+    ...body.profile,
+    name: (body.profile?.name ?? '').trim(),
+    roleAndCompany: (body.profile?.roleAndCompany ?? '').trim(),
+    intent: (body.profile?.intent ?? '').trim(),
+    linkedinSummary: (body.profile?.linkedinSummary ?? '').trim(),
+  };
+  const transcript = (body.transcript ?? '').trim();
+
+  if (!profile.name) {
+    return NextResponse.json({ error: "Lead name is required" }, { status: 400 });
+  }
+
+  if (!transcript || transcript.length < 20) {
+    return NextResponse.json(
+      { error: 'Transcript too short to extract questions from' },
+      { status: 400 }
     );
-    const extractionText = extractionResult.response.text();
-    const extraction = JSON.parse(cleanJSON(extractionText));
+  }
 
-    // Step 2: Generate PDF content
-    const contentResult = await model.generateContent(
-      buildPDFContentPrompt(profile, extraction)
-    );
-    const contentText = contentResult.response.text();
-    const pdfContent = JSON.parse(cleanJSON(contentText));
+  // Step 1
+  console.log('Step 1: Extracting questions...');
+  const extraction = await generateJSON(
+    buildExtractionPrompt(profile, transcript),
+    'Step 1'
+  );
 
-    // Step 3: Generate covering message
-    const coveringResult = await model.generateContent(
-      buildCoveringMessagePrompt(profile, extraction)
-    );
-    const coveringMessage = coveringResult.response.text();
+  // Step 2
+  console.log('Step 2: Generating PDF content...');
+  const pdfContent = await generateJSON(
+    buildPDFContentPrompt(profile, extraction),
+    'Step 2'
+  );
 
-    // Step 4: Generate PDF
+  // Ensure sections array is present and non-empty
+  if (!Array.isArray(pdfContent.sections) || pdfContent.sections.length === 0) {
+    pdfContent.sections = [
+      {
+        title: 'About Scaler',
+        content: 'Our team will follow up with detailed information.',
+        supportingDetail: '',
+      },
+    ];
+  }
+
+  // Step 3
+  console.log('Step 3: Generating covering message...');
+  const coveringCompletion = await groq.chat.completions.create({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [{ role: 'user', content: buildCoveringMessagePrompt(profile, extraction) }],
+    max_tokens: 2000,
+  });
+  const coveringMessage = coveringCompletion.choices[0]?.message?.content?.trim() || '';
+
+  // Step 4
+  console.log('Step 4: Building PDF...');
+  let pdfBuffer: Buffer;
+  try {
     const htmlContent = buildPDFHTML(profile, pdfContent);
-    const pdfBuffer = await generatePDF(htmlContent);
+    pdfBuffer = await generatePDF(htmlContent);
+  } catch (e: any) {
+    console.error('Puppeteer PDF generation failed:', e);
+    return NextResponse.json(
+      { error: 'PDF generation failed — try again' },
+      { status: 500 }
+    );
+  }
 
-    // Upload PDF to Vercel Blob storage for a durable public URL
-    const fileName = `scaler-${profile.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`;
-    const blob = await put(fileName, pdfBuffer, {
-      access: 'public',
-      contentType: 'application/pdf',
-    });
+  // Step 5
+  console.log('Step 5: Saving PDF file...');
+  const fileName = `scaler-${profile.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`;
+  const blob = await put(fileName, pdfBuffer, {
+    access: 'public',
+    contentType: 'application/pdf',
+  });
 
-    const pdfUrl = blob.url;
+  return NextResponse.json({
+    extraction,
+    pdfContent,
+    coveringMessage,
+    pdfUrl: blob.url,
+    fileName,
+  });
+}
 
-    return NextResponse.json({
-      extraction,
-      pdfContent,
-      coveringMessage,
-      pdfUrl,
-      fileName,
-    });
+export async function POST(req: NextRequest) {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error('Request timed out — please try again')),
+      TIMEOUT_MS
+    )
+  );
+
+  try {
+    return await Promise.race([handleRequest(req), timeoutPromise]);
   } catch (error: any) {
-    console.error('PDF generation error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('generate-pdf error:', error);
+    const isTimeout = error.message?.includes('timed out');
+    return NextResponse.json(
+      { error: error.message ?? 'Internal server error' },
+      { status: isTimeout ? 504 : 500 }
+    );
   }
 }
