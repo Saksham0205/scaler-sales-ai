@@ -976,7 +976,7 @@ export default function Home() {
                 </div>
                 <div className="bg-gray-100 rounded-md p-1 border border-gray-200">
                   <iframe
-                    src={pdfData.pdfUrl}
+                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfData.pdfUrl)}&embedded=true`}
                     width="100%"
                     height="480"
                     className="rounded bg-white block"
