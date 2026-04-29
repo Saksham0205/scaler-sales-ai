@@ -254,6 +254,7 @@ export default function Home() {
   const [audioFileName, setAudioFileName] = useState('');
   const [audioFileSize, setAudioFileSize] = useState('');
   const [showAutoFillBanner, setShowAutoFillBanner] = useState(false);
+  const [extractLoading, setExtractLoading] = useState(false);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -490,6 +491,37 @@ export default function Home() {
       setAudioFileSize('');
     } finally {
       setTranscribeLoading(false);
+    }
+  }
+
+  async function handleExtractFromTranscript() {
+    if (!profile.transcript.trim()) return;
+    setExtractLoading(true);
+    setShowAutoFillBanner(false);
+    try {
+      const res = await fetch('/api/extract-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: profile.transcript }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const p = data.extractedProfile;
+      setProfile((prev) => ({
+        ...prev,
+        name: p.name || prev.name,
+        roleAndCompany: p.roleAndCompany || prev.roleAndCompany,
+        yearsOfExperience: p.yearsOfExperience ?? prev.yearsOfExperience,
+        intent: p.intent || prev.intent,
+        linkedinSummary: p.linkedinSummary || prev.linkedinSummary,
+        programOfInterest: p.programOfInterest || prev.programOfInterest,
+      }));
+      setShowAutoFillBanner(true);
+      addToast('Profile auto-filled from transcript!', 'success');
+    } catch (e: any) {
+      addToast(e.message, 'error');
+    } finally {
+      setExtractLoading(false);
     }
   }
 
@@ -741,26 +773,55 @@ export default function Home() {
                   </div>
                   
                   {textTabMode === 'edit' || !profile.transcript.trim() ? (
-                    <div className="flex-1 relative group">
-                      <textarea
-                        placeholder="Paste the call transcript here...&#10;&#10;BDA: Hi, am I speaking with Rohan?&#10;Lead: Yes, speaking."
-                        value={profile.transcript}
-                        onChange={(e) => updateField('transcript', e.target.value)}
-                        className="w-full h-full min-h-[360px] border border-gray-200 rounded-md p-4 text-sm text-gray-700 leading-relaxed focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 resize-none bg-gray-50/50 custom-scrollbar transition-colors"
-                      />
-                      {profile.transcript && (
-                        <button 
-                          onClick={() => updateField('transcript', '')}
-                          className="absolute top-3 right-3 p-1.5 bg-white border border-gray-200 rounded-md text-gray-400 hover:text-gray-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Clear transcript"
+                    <div className="flex-1 flex flex-col gap-2">
+                      <div className="relative group flex-1">
+                        <textarea
+                          placeholder="Paste the call transcript here...&#10;&#10;BDA: Hi, am I speaking with Rohan?&#10;Lead: Yes, speaking."
+                          value={profile.transcript}
+                          onChange={(e) => updateField('transcript', e.target.value)}
+                          className="w-full h-full min-h-[360px] border border-gray-200 rounded-md p-4 text-sm text-gray-700 leading-relaxed focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 resize-none bg-gray-50/50 custom-scrollbar transition-colors"
+                        />
+                        {profile.transcript && (
+                          <button 
+                            onClick={() => updateField('transcript', '')}
+                            className="absolute top-3 right-3 p-1.5 bg-white border border-gray-200 rounded-md text-gray-400 hover:text-gray-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Clear transcript"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
+                      </div>
+                      {profile.transcript.trim() && (
+                        <button
+                          onClick={handleExtractFromTranscript}
+                          disabled={extractLoading}
+                          className="self-start flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          {extractLoading ? (
+                            <><Spinner /> Extracting profile...</>
+                          ) : (
+                            <><span>⚡</span> Auto-fill from transcript</>
+                          )}
                         </button>
                       )}
                     </div>
                   ) : (
                     <div className="border border-gray-200 rounded-md bg-white p-2">
                       <TranscriptViewer text={profile.transcript} className="h-[360px]" />
+                    </div>
+                  )}
+                  {showAutoFillBanner && activeTab === 'transcript' && (
+                    <div className="flex items-start justify-between gap-3 bg-gray-900 text-white rounded-md px-4 py-3 text-sm shadow-md mt-2">
+                      <span className="flex items-center gap-2">
+                        <span className="text-gray-400">⚡</span> Profile auto-filled from transcript.
+                      </span>
+                      <button
+                        onClick={() => setShowAutoFillBanner(false)}
+                        className="shrink-0 text-gray-400 hover:text-white transition-colors"
+                        aria-label="Dismiss"
+                      >
+                        ✕
+                      </button>
                     </div>
                   )}
                 </div>
