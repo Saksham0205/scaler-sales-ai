@@ -1,36 +1,18 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## What I built
+I built a two-part AI agent for Scaler's sales team. Before a call, the BDA gets a WhatsApp message — a short, plain-English brief on who they're about to call: what's likely driving the lead, the objections to expect and a suggested opening line specific to that person. After the call, the agent reads the transcript (or transcribes a call recording), pulls out every open question the lead raised and generates a personalised 2–3 page PDF that actually answers those questions — no generic marketing copy, no fabricated curriculum claims. The BDA reviews the PDF and a draft covering message, then hits Approve to send both to the lead's WhatsApp. The whole thing runs in a Next.js app deployed on Vercel, uses Llama 4 via Groq for generation and Whisper for transcription, and stores PDFs on Vercel Blob for stable public URLs.
 
-## Getting Started
+## One failure I found
+Honest example: when the lead profile has very little 
+information (e.g. Meera with no LinkedIn), the PDF 
+content becomes more generic because the extraction 
+has less to work with. The personalisation depth 
+drops when input signal is thin.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scale plan
+At 100k leads/month the first bottleneck is the PDF 
+generation pipeline — each PDF makes 3 sequential LLM 
+calls plus a Puppeteer render, taking 15-20 seconds per 
+lead. At scale this needs a job queue (BullMQ/Redis), 
+async PDF generation with webhook callbacks, and 
+distributed Puppeteer instances. The second constraint 
+is Twilio's WhatsApp throughput limits on the sandbox tier.
