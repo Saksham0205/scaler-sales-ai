@@ -643,18 +643,26 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── Two-column layout: Section A + Section B side by side ────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-            {/* Lead Profile Input */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col">
+          {/* ── Section A: Pre-Call Prep ──────────────────────────────────── */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Pre-Call</span>
+              <h2 className="text-sm font-semibold text-gray-900">Pre-Call Prep</h2>
+            </div>
+
+            {/* Lead Profile form */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-semibold text-gray-900">Lead Profile</h2>
+                <h3 className="text-base font-semibold text-gray-900">Lead Profile</h3>
                 <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
                   Data Entry
                 </span>
               </div>
 
-              <div className="space-y-4 flex-1">
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1.5">Full Name *</label>
@@ -730,10 +738,32 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Generate Pre-Call Nudge button */}
+            <div className="flex flex-col items-start gap-1.5 pt-1">
+              <button
+                onClick={generateNudge}
+                disabled={nudgeLoading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {nudgeLoading ? <Spinner /> : <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
+                {nudgeLoading ? 'Generating Nudge...' : 'Generate Pre-Call Nudge'}
+              </button>
+              <p className="text-xs text-gray-400 pl-0.5">Sends to BDA WhatsApp · No approval needed</p>
+            </div>
+
+          </div>{/* end Section A */}
+
+          {/* ── Section B: Post-Call Follow-up ───────────────────────────────── */}
+          <div className="space-y-4 lg:border-l lg:border-gray-200 lg:pl-6">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Post-Call</span>
+              <h2 className="text-sm font-semibold text-gray-900">Post-Call Follow-up</h2>
+            </div>
+
             {/* Call Input */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-semibold text-gray-900">Call Input</h2>
+                <h3 className="text-base font-semibold text-gray-900">Call Input</h3>
                 <div className="flex bg-gray-100 rounded-md p-0.5">
                   <button
                     onClick={() => setActiveTab('transcript')}
@@ -771,7 +801,7 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  
+
                   {textTabMode === 'edit' || !profile.transcript.trim() ? (
                     <div className="flex-1 flex flex-col gap-2">
                       <div className="relative group flex-1">
@@ -782,7 +812,7 @@ export default function Home() {
                           className="w-full h-full min-h-[360px] border border-gray-200 rounded-md p-4 text-sm text-gray-700 leading-relaxed focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 resize-none bg-gray-50/50 custom-scrollbar transition-colors"
                         />
                         {profile.transcript && (
-                          <button 
+                          <button
                             onClick={() => updateField('transcript', '')}
                             className="absolute top-3 right-3 p-1.5 bg-white border border-gray-200 rounded-md text-gray-400 hover:text-gray-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Clear transcript"
@@ -893,31 +923,45 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button
-              onClick={generateNudge}
-              disabled={nudgeLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-900 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
-            >
-              {nudgeLoading ? <Spinner /> : <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-              {nudgeLoading ? 'Generating Nudge...' : 'Generate Pre-Call Nudge'}
-            </button>
+            {/* Generate Post-Call PDF button */}
+            <div className="flex flex-col items-start gap-1.5 pt-1">
+              <button
+                onClick={generatePDF}
+                disabled={pdfLoading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {pdfLoading ? <Spinner /> : <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                {pdfLoading ? 'Generating PDF...' : 'Generate Post-Call PDF'}
+              </button>
+              <p className="text-xs text-gray-400 pl-0.5">BDA reviews before sending to lead</p>
+            </div>
+          </div>{/* end Section B */}
 
-            <button
-              onClick={generatePDF}
-              disabled={pdfLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
-            >
-              {pdfLoading ? <Spinner /> : <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
-              {pdfLoading ? 'Generating PDF...' : 'Generate Post-Call PDF'}
-            </button>
-          </div>
+          </div>{/* end two-column grid */}
 
-          {/* PDF Progress Stepper */}
-          {pdfLoading && (
+          {/* ── Full-width output panels ──────────────────────────────────────── */}
+
+          {/* Nudge Output Panel */}
+          {nudgeResult && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">Pre-Call Nudge</h3>
+                {nudgeSent && (
+                  <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md border border-gray-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Sent to BDA
+                  </span>
+                )}
+              </div>
+              <div className="bg-gray-50 rounded-md border border-gray-200 p-4">
+                <MarkdownText text={nudgeResult} />
+              </div>
+            </div>
+          )}
+
+            {/* PDF Progress Stepper */}
+            {pdfLoading && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <p className="text-sm font-semibold text-gray-900 mb-5">Processing Document</p>
               <div className="space-y-4">
@@ -955,25 +999,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Nudge Output Panel */}
-          {nudgeResult && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Pre-Call Nudge</h2>
-                {nudgeSent && (
-                  <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md border border-gray-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    Sent to BDA
-                  </span>
-                )}
-              </div>
-              <div className="bg-gray-50 rounded-md border border-gray-200 p-4">
-                <MarkdownText text={nudgeResult} />
-              </div>
-            </div>
-          )}
-
-          {/* PDF Preview Panel */}
+            {/* PDF Preview Panel */}
           {pdfData && !pdfSkipped && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between">
@@ -1141,8 +1167,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Persona Comparison Panel */}
-          {pdfHistory.length >= 2 && (
+            {/* Persona Comparison Panel */}
+            {pdfHistory.length >= 2 && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h2 className="text-base font-semibold text-gray-900 mb-1">Persona Comparison</h2>
               <p className="text-xs text-gray-500 mb-5">Personalisation differences across generated PDFs</p>
