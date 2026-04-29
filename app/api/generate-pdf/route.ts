@@ -5,7 +5,7 @@ import {
   buildPDFContentPrompt,
   buildCoveringMessagePrompt,
 } from '@/lib/prompts';
-import { generatePDF, buildPDFHTML } from '@/lib/pdf';
+import { generatePDF, buildPDFHTML, buildPDFFooter } from '@/lib/pdf';
 import { put } from '@vercel/blob';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -101,7 +101,11 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
   let pdfBuffer: Buffer;
   try {
     const htmlContent = buildPDFHTML(profile, pdfContent);
-    pdfBuffer = await generatePDF(htmlContent);
+    const footerHtml = buildPDFFooter(
+      pdfContent?.closingNote ?? '— The Scaler Team',
+      new Date().getFullYear()
+    );
+    pdfBuffer = await generatePDF(htmlContent, footerHtml);
   } catch (e: any) {
     console.error('Puppeteer PDF generation failed:', e);
     return NextResponse.json(

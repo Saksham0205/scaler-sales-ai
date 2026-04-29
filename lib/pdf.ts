@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium-min';
 
-export async function generatePDF(htmlContent: string): Promise<Buffer> {
+export async function generatePDF(htmlContent: string, footerHtml?: string): Promise<Buffer> {
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -19,7 +19,14 @@ export async function generatePDF(htmlContent: string): Promise<Buffer> {
   try {
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ format: 'A4', printBackground: true });
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      displayHeaderFooter: !!footerHtml,
+      headerTemplate: '<span></span>',
+      footerTemplate: footerHtml ?? '',
+      margin: footerHtml ? { bottom: '56px', top: '0px' } : undefined,
+    });
     return Buffer.from(pdf);
   } finally {
     await browser.close().catch(() => {});
@@ -29,6 +36,16 @@ export async function generatePDF(htmlContent: string): Promise<Buffer> {
 function safe(value: unknown, fallback: string): string {
   if (value === null || value === undefined || value === '') return fallback;
   return String(value);
+}
+
+export function buildPDFFooter(closingNote: string, year: number): string {
+  return `
+    <div style="width:100%;padding:0 48px;display:flex;justify-content:space-between;align-items:center;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      font-size:10px;color:#64748B;border-top:1px solid #E2E8F0;box-sizing:border-box;">
+      <span>© ${year} Scaler. All rights reserved.</span>
+      <span style="font-style:italic;font-weight:500">${closingNote}</span>
+    </div>`;
 }
 
 export function buildPDFHTML(profile: any, content: any): string {
@@ -116,20 +133,20 @@ export function buildPDFHTML(profile: any, content: any): string {
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    padding: 32px 48px; 
+    padding: 24px 48px; 
     border-bottom: 1px solid var(--border); 
   }
-  .logo-container { display: flex; align-items: center; gap: 12px; }
-  .logo-img { height: 32px; width: 32px; object-fit: contain; }
-  .logo-text { font-size: 22px; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; }
+  .logo-container { display: flex; align-items: center; gap: 10px; }
+  .logo-img { height: 26px; width: 26px; object-fit: contain; }
+  .logo-text { font-size: 17px; font-weight: 700; color: var(--text-main); letter-spacing: -0.3px; }
   .logo-text span { color: var(--scaler-orange); }
-  .header-meta { text-align: right; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+  .header-meta { text-align: right; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   .header-meta strong { color: var(--text-main); font-weight: 600; }
 
   .hero { 
     background: var(--scaler-blue); 
     color: white; 
-    padding: 56px 48px; 
+    padding: 40px 48px; 
     position: relative; 
     overflow: hidden; 
   }
@@ -138,90 +155,80 @@ export function buildPDFHTML(profile: any, content: any): string {
     background: rgba(255,107,53,0.15); 
     color: #FFDbc9; 
     border: 1px solid rgba(255,107,53,0.3); 
-    padding: 6px 16px; 
+    padding: 4px 14px; 
     border-radius: 20px; 
-    font-size: 11px; 
+    font-size: 10px; 
     font-weight: 600; 
-    letter-spacing: 1px; 
+    letter-spacing: 0.8px; 
     text-transform: uppercase; 
-    margin-bottom: 24px; 
+    margin-bottom: 16px; 
   }
   .hero h1 { 
-    font-size: 36px; 
+    font-size: 24px; 
     font-weight: 700; 
-    line-height: 1.25; 
-    margin-bottom: 20px; 
-    letter-spacing: -1px; 
+    line-height: 1.3; 
+    margin-bottom: 14px; 
+    letter-spacing: -0.5px; 
     max-width: 90%;
   }
   .hero p { 
-    font-size: 16px; 
-    color: rgba(255,255,255,0.9); 
+    font-size: 13px; 
+    color: rgba(255,255,255,0.88); 
     max-width: 85%; 
     line-height: 1.7; 
   }
 
-  .content-wrapper { padding: 48px; }
+  .content-wrapper { padding: 36px 48px; }
   
-  .section { margin-bottom: 48px; page-break-inside: avoid; }
+  .section { margin-bottom: 36px; page-break-inside: avoid; }
   .section:last-child { margin-bottom: 0; }
   
-  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .section-icon { width: 24px; height: 24px; color: var(--scaler-orange); }
-  .section h2 { font-size: 22px; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-icon { width: 20px; height: 20px; color: var(--scaler-orange); }
+  .section h2 { font-size: 15px; font-weight: 700; color: var(--text-main); letter-spacing: -0.2px; }
   
   .section-content { 
-    font-size: 15px; 
+    font-size: 12.5px; 
     color: var(--text-muted); 
-    line-height: 1.8; 
-    margin-bottom: 24px; 
-    padding-left: 36px; 
+    line-height: 1.75; 
+    margin-bottom: 16px; 
+    padding-left: 30px; 
   }
 
   .insight-box { 
     background: var(--bg-light); 
-    border-left: 4px solid var(--scaler-orange); 
-    padding: 20px 24px; 
-    border-radius: 0 8px 8px 0; 
+    border-left: 3px solid var(--scaler-orange); 
+    padding: 14px 18px; 
+    border-radius: 0 6px 6px 0; 
     display: flex; 
-    gap: 16px; 
+    gap: 12px; 
     align-items: flex-start; 
-    margin-left: 36px;
+    margin-left: 30px;
   }
-  .insight-icon { width: 20px; height: 20px; color: var(--scaler-orange); flex-shrink: 0; margin-top: 2px; }
-  .insight-text { font-size: 14px; color: var(--text-main); font-weight: 500; line-height: 1.6; }
+  .insight-icon { width: 16px; height: 16px; color: var(--scaler-orange); flex-shrink: 0; margin-top: 2px; }
+  .insight-text { font-size: 12px; color: var(--text-main); font-weight: 500; line-height: 1.6; }
 
   .cta-section { 
     background: var(--bg-light); 
     border: 1px solid var(--border); 
-    border-radius: 16px; 
-    padding: 48px; 
+    border-radius: 12px; 
+    padding: 36px 40px; 
     text-align: center; 
-    margin: 0 48px 48px; 
+    margin: 0 48px 36px; 
     page-break-inside: avoid; 
   }
-  .cta-section h3 { font-size: 24px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; letter-spacing: -0.5px; }
-  .cta-section p { font-size: 15px; color: var(--text-muted); margin-bottom: 32px; max-width: 80%; margin-left: auto; margin-right: auto; line-height: 1.7; }
+  .cta-section h3 { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 12px; letter-spacing: -0.3px; }
+  .cta-section p { font-size: 12.5px; color: var(--text-muted); margin-bottom: 24px; max-width: 80%; margin-left: auto; margin-right: auto; line-height: 1.7; }
   .cta-btn { 
     display: inline-block; 
     background: var(--scaler-orange); 
     color: white; 
-    padding: 16px 32px; 
-    border-radius: 8px; 
+    padding: 12px 28px; 
+    border-radius: 7px; 
     font-weight: 600; 
     text-decoration: none; 
-    font-size: 16px; 
+    font-size: 13px; 
   }
-
-  .footer { 
-    padding: 32px 48px; 
-    border-top: 1px solid var(--border); 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-  }
-  .footer p { font-size: 12px; color: var(--text-muted); }
-  .footer .signature { font-style: italic; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -250,11 +257,6 @@ export function buildPDFHTML(profile: any, content: any): string {
   <h3>${ctaHeading}</h3>
   <p>${ctaBody}</p>
   <a href="https://www.scaler.com/test" class="cta-btn">${ctaButtonText}</a>
-</div>
-
-<div class="footer">
-  <p>© ${new Date().getFullYear()} Scaler. All rights reserved.</p>
-  <p class="signature">${closingNote}</p>
 </div>
 
 </body>

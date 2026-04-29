@@ -337,6 +337,11 @@ export default function Home() {
     setNudgeLoading(true);
     setNudgeResult('');
     setNudgeSent(false);
+    // Clear any existing PDF output so both don't show simultaneously
+    setPdfData(null);
+    setPdfSent(false);
+    setPdfSkipped(false);
+    setEditingMessage(false);
     try {
       const res = await fetch('/api/generate-nudge', {
         method: 'POST',
@@ -375,6 +380,9 @@ export default function Home() {
     setPdfSent(false);
     setPdfSkipped(false);
     setEditingMessage(false);
+    // Clear any existing nudge output so both don't show simultaneously
+    setNudgeResult('');
+    setNudgeSent(false);
     try {
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
