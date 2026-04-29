@@ -74,6 +74,7 @@ ${extraction.openQuestions.map((q: any, i: number) => `${i + 1}. ${q.question} (
 
 Write the PDF content as a JSON object with this structure:
 {
+  "badge": "A 3-5 word label for the top of the PDF — specific to this lead's situation (e.g. 'Breaking Into Product' or 'Applied AI at Senior Level' or 'First Job, Right Choice'). Not generic. Not marketing fluff.",
   "headline": "A personalised headline for ${profile.name} — not generic, references their specific situation",
   "openingParagraph": "2-3 sentences that show we listened to their call and understand exactly where they are",
   "sections": [
