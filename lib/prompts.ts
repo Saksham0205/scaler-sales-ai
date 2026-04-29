@@ -1,6 +1,18 @@
 import { LeadProfile } from './personas';
 
-export function buildNudgePrompt(profile: LeadProfile): string {
+export function buildNudgePrompt(profile: LeadProfile, curriculumContext: string = ''): string {
+  const curriculumSection = curriculumContext
+    ? `
+VERIFIED SCALER PROGRAM DATA (sourced live from scaler.com — use this for any specific claims):
+---
+${curriculumContext.slice(0, 2000)}
+---
+When mentioning curriculum modules, fees, or alumni outcomes, reference the data above. If a specific detail is not covered, say "verify with the team" — never invent it.
+`
+    : `
+NOTE: No live curriculum data available. Do NOT fabricate specific module names, placement percentages, or salary figures. Refer to Scaler programs generally and suggest the BDA confirm specifics on the call.
+`;
+
   return `You are a sharp sales intelligence assistant briefing a BDA (Business Development Associate) at Scaler, an ed-tech company for software engineers. The BDA is reading this on their phone 2 minutes before calling the lead.
 
 Write a WhatsApp message to the BDA. It must be:
@@ -8,7 +20,7 @@ Write a WhatsApp message to the BDA. It must be:
 - Written like a smart teammate's message, not a corporate memo
 - Use short paragraphs and line breaks (no markdown headers)
 - Honest about what is inferred vs. confirmed fact
-
+${curriculumSection}
 Include:
 1. Who this person is in plain English (2-3 lines max)
 2. Their likely persona/motivation (what's really driving them)
@@ -24,7 +36,7 @@ Lead Profile:
 - LinkedIn/Background: ${profile.linkedinSummary}
 - Program of Interest: ${profile.programOfInterest}
 
-Do not fabricate specific Scaler curriculum details, salary data, or placement statistics. If you reference Scaler specifics, flag them as "verify before using". Keep it real.`;
+Keep it under 200 words. Be specific to this person, not generic.`;
 }
 
 export function buildExtractionPrompt(profile: LeadProfile, transcript: string): string {
@@ -58,11 +70,27 @@ Lead Profile:
 Return only valid JSON. No markdown, no preamble.`;
 }
 
-export function buildPDFContentPrompt(profile: LeadProfile, extraction: any): string {
+export function buildPDFContentPrompt(
+  profile: LeadProfile,
+  extraction: any,
+  curriculumContext: string = ''
+): string {
+  const curriculumSection = curriculumContext
+    ? `
+LIVE CURRICULUM DATA (fetched directly from scaler.com — use this as your primary source for any curriculum, placement, or program claims):
+---
+${curriculumContext}
+---
+When answering questions about curriculum modules, placement stats, salary outcomes, or program structure — reference the data above. Quote it directly where possible. If the data above does not cover a specific claim, say explicitly: "Our team will confirm this detail" — never invent it.
+`
+    : `
+NOTE: Live curriculum data could not be fetched. Do NOT fabricate curriculum details, module names, placement percentages, or salary figures. For any claim you cannot confirm from your training data, write: "Our curriculum team will follow up with the exact details on this."
+`;
+
   return `You are writing the content for a personalised 2-3 page PDF document for ${profile.name}, a ${profile.roleAndCompany} with ${profile.yearsOfExperience} years of experience.
 
 This PDF will be sent to ${profile.name} after their sales call with Scaler. Its job is to build enough trust that ${profile.name} takes Scaler's entrance test.
-
+${curriculumSection}
 Lead context:
 - Their motivation: ${extraction.keyMotivation}
 - Their biggest hesitation: ${extraction.biggestHesitation}
@@ -80,8 +108,8 @@ Write the PDF content as a JSON object with this structure:
   "sections": [
     {
       "title": "Section title addressing one of their questions",
-      "content": "Substantive answer to their question. Be specific. If you cannot confirm a Scaler curriculum detail, say 'Our curriculum team will confirm the exact module depth — but here is what we know: [what you know]'. Never fabricate.",
-      "supportingDetail": "A concrete data point, alumni outcome reference, or logical argument that supports the answer"
+      "content": "Substantive answer to their question. Ground every curriculum or placement claim in the live data above. If a specific detail is not in the live data, say so explicitly rather than fabricating.",
+      "supportingDetail": "A concrete data point, alumni outcome reference, or logical argument that supports the answer — cite the live data where available"
     }
   ],
   "callToAction": {
@@ -95,8 +123,8 @@ Write the PDF content as a JSON object with this structure:
 CRITICAL RULES:
 - Every section must be specific to ${profile.name}'s situation. Mention their company, role, or specific question.
 - Do NOT use generic ed-tech marketing language ("transform your career", "unlock your potential")
-- Do NOT fabricate specific alumni names, salary numbers, or curriculum module details you are not certain about
-- If referencing salary outcomes, say "Scaler alumni in similar profiles have reported..." and give a range directionally, not a precise fabricated number
+- Curriculum claims MUST be grounded in the live data above. If the live data doesn't cover it, flag it explicitly.
+- If referencing salary outcomes, only use figures found in the live data. If none are present, write directionally: "Scaler alumni in similar profiles have reported significant jumps — our team will share verified numbers."
 - The tone should match the lead's sentiment: ${extraction.leadSentiment === 'skeptical' || extraction.leadSentiment === 'very_skeptical' ? 'be direct, honest, evidence-forward — skip the hype' : 'be warm and encouraging but still specific'}
 - For ${profile.name} specifically: ${profile.yearsOfExperience === 0 ? 'they are a student with family pressure — be reassuring about placement support and financing, acknowledge the risk they are taking' : profile.yearsOfExperience >= 8 ? 'they are experienced — treat them as a peer, not a customer. They will see through fluff instantly.' : 'they are mid-career — focus on the career trajectory shift and concrete ROI'}
 

@@ -7,6 +7,7 @@ import {
 } from '@/lib/prompts';
 import { generatePDF, buildPDFHTML, buildPDFFooter } from '@/lib/pdf';
 import { put } from '@vercel/blob';
+import { fetchScalerCurriculum } from '@/lib/scaler-curriculum';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TIMEOUT_MS = 45_000;
@@ -62,17 +63,33 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Step 1
-  console.log('Step 1: Extracting questions...');
-  const extraction = await generateJSON(
-    buildExtractionPrompt(profile, transcript),
-    'Step 1'
-  );
+  // Step 1: Fetch live curriculum data from scaler.com (in parallel with nothing,
+  // so we don't add latency to the critical path — it starts immediately)
+  console.log('Step 1a: Fetching live curriculum data from scaler.com...');
+  const curriculumContextPromise = fetchScalerCurriculum(
+    profile.programOfInterest || 'Scaler Academy'
+  ).catch((err: Error) => {
+    console.warn('Curriculum fetch failed, continuing without grounding:', err.message);
+    return '';
+  });
+
+  // Step 1b: Extract questions from transcript (runs concurrently with fetch above)
+  console.log('Step 1b: Extracting questions from transcript...');
+  const [extraction, curriculumContext] = await Promise.all([
+    generateJSON(buildExtractionPrompt(profile, transcript), 'Step 1b'),
+    curriculumContextPromise,
+  ]);
+
+  if (curriculumContext) {
+    console.log(`Curriculum context loaded (${curriculumContext.length} chars)`);
+  } else {
+    console.warn('No curriculum context — PDF will include explicit uncertainty flags');
+  }
 
   // Step 2
   console.log('Step 2: Generating PDF content...');
   const pdfContent = await generateJSON(
-    buildPDFContentPrompt(profile, extraction),
+    buildPDFContentPrompt(profile, extraction, curriculumContext),
     'Step 2'
   );
 

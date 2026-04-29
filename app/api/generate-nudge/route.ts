@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { buildNudgePrompt } from '@/lib/prompts';
 import { sendWhatsAppText } from '@/lib/twilio';
+import { fetchScalerCurriculum } from '@/lib/scaler-curriculum';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -34,7 +35,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const prompt = buildNudgePrompt(profile);
+    const curriculumContext = await fetchScalerCurriculum(
+      profile.programOfInterest || 'Scaler Academy'
+    ).catch(() => '');
+
+    const prompt = buildNudgePrompt(profile, curriculumContext);
 
     const completion = await groq.chat.completions.create({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
